@@ -20,4 +20,6 @@ RUN apt-get update \
         nano \
         vim
 
+RUN apt-get install -y libopenblas-dev
+
 WORKDIR /opt/HPCTools/
