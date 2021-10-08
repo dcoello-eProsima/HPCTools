@@ -22,4 +22,12 @@ RUN apt-get update \
 
 RUN apt-get install -y libopenblas-dev
 
+RUN apt-get install -y libxshmfence-dev \ 
+			libnss3-dev \
+			libatk-adaptor \
+			libgdk-pixbuf2.0-dev \ 
+			libgtk-3-dev \
+			libasound-dev \
+ 
+
 WORKDIR /opt/HPCTools/

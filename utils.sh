@@ -10,6 +10,8 @@ function enter_image () {
 	docker run --rm -it --security-opt apparmor=unconfined --user "$UID:$GID" \
 			--volume="/etc/group:/etc/group:ro" \
 			-e "HOME=/home/$USER" \
+			-e "DISPLAY=$DISPLAY" \
+			--volume="/tmp/.X11-unix:/tmp/.X11-unix" \
 			--volume="/home/$USER:/home/$USER" \
 			--volume="/etc/passwd:/etc/passwd:ro" \
 			--volume="/etc/shadow:/etc/shadow:ro" \

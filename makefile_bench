@@ -1,0 +1,40 @@
+TARGETS = dgesv_O0 dgesv_O1 dgesv_O2 dgesv_O2m dgesv_O3 dgesv_O3m dgesv_Ofast dgesv_Ofastm dgesv_fast
+
+all: $(TARGETS)
+
+CC = cc
+PLATFLAGS=-march=native
+CFLAGS = -Wall -Wextra
+
+%_O0.o: %.c
+	$(CC) $(CFLAGS) -O0 -g -c -o $@ $<
+
+%_O1.o: %.c
+	$(CC) $(CFLAGS) -O1 -c -o $@ $<
+
+%_O2.o: %.c
+	$(CC) $(CFLAGS) -O2 -c -o $@ $<
+
+%_O2m.o: %.c
+	$(CC) $(CFLAGS) -O2 $(PLATFLAGS) -c -o $@ $<
+
+%_O3.o: %.c
+	$(CC) $(CFLAGS) -O3 -c -o $@ $<
+
+%_O3m.o: %.c
+	$(CC) $(CFLAGS) -O3 $(PLATFLAGS) -c -o $@ $<
+
+%_Ofast.o: %.c
+	$(CC) $(CFLAGS) -Ofast -c -o $@ $<
+
+%_Ofastm.o: %.c
+	$(CC) $(CFLAGS) -Ofast $(PLATFLAGS) -c -o $@ $<
+
+%_fast.o: %.c
+	$(CC) $(CFLAGS) -fast -c -o $@ $<
+
+clean:
+	rm -f *.o *~
+
+cleanall: clean
+	rm -f $(TARGETS)
