@@ -27,7 +27,10 @@ RUN apt-get install -y libxshmfence-dev \
 			libatk-adaptor \
 			libgdk-pixbuf2.0-dev \ 
 			libgtk-3-dev \
-			libasound-dev \
+			libasound-dev 
+
+RUN apt-get install -y valgrind 
+RUN apt-get update && apt-get install -y --fix-missing kcachegrind
  
 
 WORKDIR /opt/HPCTools/

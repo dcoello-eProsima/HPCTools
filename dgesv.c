@@ -94,16 +94,7 @@ int my_dgesv(int n, int nrhs, double *a, int lda, int *ipiv, double *b,
 
   // Replace with your implementation
   LAPACKE_dgesv(LAPACK_ROW_MAJOR, n, nrhs, a, lda, ipiv, b, ldb);
-}
-
-float calculate_row_col(int row_a, int col_b, int n_c_a, double *a, int n_r_b,
-                        double *b) {
-  float result = 0;
-  for (int i_a = row_a * n_c_a, i_b = col_b, counter = 0; counter < n_r_b;
-       i_a++, i_b += n_r_b, counter++) {
-    result += a[i_a] * b[i_b];
-  }
-  return result;
+  return 0;
 }
 
 void swap(double *a, double *b) {
@@ -115,36 +106,15 @@ void swap(double *a, double *b) {
 // get mutable element
 double *gme(int r, int c, int n_c, double *m) { return &m[c + r * n_c]; }
 
-void matrix_transpose(int n_r, int n_c, double *m) {
-  for (int c = 0; c < n_c; c++) {
-    for (int r = c; r < n_r; r++) {
-      swap(gme(r, c, n_c, m), gme(c, r, n_c, m));
-    }
-  }
-}
-
 void row_interchange(int n_r, int n_c, int row_1, int row_2, double *m) {
   if (row_1 > n_r || row_2 > n_r) {
     return;
   }
-  for (int i = 0; i < n_c; i++) {
+  for (int i = 0; i < n_c; i++) { // loop vectorized
     swap(gme(row_1, i, n_c, m), gme(row_2, i, n_c, m));
   }
 }
 
-double *matrix_multiplication(int n_r_a, int n_c_a, double *a, int n_r_b,
-                              int n_c_b, double *b) {
-  if (n_c_a != n_r_b) {
-    return NULL;
-  }
-  double *result = (double *)malloc(sizeof(double) * n_r_a * n_c_b);
-  for (int i = 0; i < n_r_a; i++) {
-    for (int j = 0; j < n_c_b; j++) {
-      result[i * n_r_a + j] = calculate_row_col(i, j, n_c_a, a, n_r_b, b);
-    }
-  }
-  return result;
-}
 
 double *get_identity_matrix(int n) {
   double *identity = (double *)malloc(sizeof(double) * n * n);
@@ -155,74 +125,47 @@ double *get_identity_matrix(int n) {
   return identity;
 }
 
-void matrix_addition(int n_r, int n_c, double *a, double *b) {
-  for (int i = 0; i < n_r; i++) {
-    for (int j = 0; j < n_c; j++) {
-      *gme(i, j, n_c, a) += *gme(i, j, n_c, b);
-    }
-  }
-}
-
 void pa_lu_colum(int n_r, int n_c, int c, double *m, double *l) {
-  double *elem = gme(c, c, n_c, m);
-  if (!*elem) {
-    printf("ERROR, implementar Pivote");
-    return;
-  }
+  double *elem = &m[c + c * n_c];
   for (int i = 1; i < n_r - c; i++) {
-    double *next = gme(c + i, c, n_c, m);
+    int c_index = ((c + i ) * n_c);
+    double *next = &m[c + c_index];
     double n_d_e = *next / *elem;
-    for (int j = 0; j < n_r; j++) {
-      *gme(c + i, j, n_c, m) -= *gme(c, j, n_c, m) * n_d_e;
+    for (int j = 0; j < n_r; j++) { // loop vectorized
+      m[j + c_index] -=  m[j + (c * n_c)] * n_d_e;
     }
-    *gme(c + i, c, n_c, l) += n_d_e;
+    l[c + c_index]+= n_d_e;
   }
 }
 
-void solve_l(int n_r_a, int n_c_a, double *m, int n_r_b, int n_c_b, double *b) {
+void solve_l(int n_r_a, int n_c_a, double *m, int n_c_b, double *b) {
   for (int arow = 0; arow < n_r_a; arow++) {
-    for (int bcol = 0; bcol < n_c_b; bcol++) {
+    int arow_nca = arow * n_c_a;
+    int arow_ncb = arow * n_c_b;
+    int arow_p_arow_nca = m[arow_nca+ arow];
+    for (int bcol = 0; bcol < n_c_b; bcol++) { // loop vectorized
       double add = 0.0;
       for (int acol = 0; acol < arow; acol++) {
-        add += -1 * *gme(arow, acol, n_c_a, m) * *gme(acol, bcol, n_c_b, b);
+        add += -1 * m[arow_nca + acol] * b[bcol + acol * n_c_b];
       }
-      *gme(arow, bcol, n_c_b, b) =
-          ((*gme(arow, bcol, n_c_b, b) + add) / *gme(arow, arow, n_c_a, m));
+      b[arow_ncb + bcol] = ((b[arow_ncb + bcol] + add) / arow_p_arow_nca);
     }
   }
 }
 
-void solve_u(int n_r_a, int n_c_a, double *m, int n_r_b, int n_c_b, double *b) {
+void solve_u(int n_r_a, int n_c_a, double *m, int n_c_b, double *b) {
   for (int arow = n_r_a - 1; arow >= 0; arow--) {
-    for (int bcol = 0; bcol < n_c_b; bcol++) {
+    int arow_nca = arow * n_c_a;
+    int arow_ncb = arow * n_c_b;
+    for (int bcol = 0; bcol < n_c_b; bcol++) { // loop vectorized
       double add = 0.0;
       for (int acol = n_c_a - 1; acol > arow; acol--) {
-        add += -1 * *gme(arow, acol, n_c_a, m) * *gme(acol, bcol, n_c_b, b);
+        add += -1 * m[acol + arow_nca] * b[bcol + acol * n_c_b];
       }
-      *gme(arow, bcol, n_c_b, b) =
-          ((*gme(arow, bcol, n_c_b, b) + add) / *gme(arow, arow, n_c_a, m));
+      b[arow_ncb + bcol] = ((b[arow_ncb + bcol] + add) / m[arow_nca + arow]);
     }
   }
 }
-
-/*double * check_permutations(int n, double * m, int n_r_b, int n_c_b, double*b)
-{ double * p = (double *)malloc(sizeof(double) * n); for (int i = 0; i < n; i
-++) { p[i]= (double)i;
-  }
-  for(int r = 0; r < n; r++) {
-    if(!*gme(r,r,n,m)) {
-       for(int r2 = 0; r2 < n; r2++) {
-         if(*gme(r2,r,n,m) && *gme(r,r2,n,m)) {
-           row_interchange(n,n,r, r2, m);
-           row_interchange(n_r_b,n_c_b,r, r2, b);
-           row_interchange(n,1,r, r2, p);
-           break;
-         }
-       }
-    }
-  }
-  return p;
-}*/
 
 void check_permutations(int n, double *m, int n_r_b, int n_c_b, double *b) {
   for (int r = 0; r < n; r++) {
@@ -245,46 +188,17 @@ double *pa_lu(int n_r, int n_c, double *m, int n_r_b, int n_c_b, double *b) {
     pa_lu_colum(n_r, n_c, colum, m, l);
   }
 
-  solve_l(n_r, n_c, l, n_r_b, n_c_b, b);
-  solve_u(n_r, n_c, m, n_r_b, n_c_b, b);
+  solve_l(n_r, n_c, l, n_c_b, b);
+  solve_u(n_r, n_c, m, n_c_b, b);
   return l;
 }
 
-double *generate_my_matrix(int size) {
-  int i;
-  double *matrix = (double *)malloc(sizeof(double) * 3 * 3);
-
-  *gme(0, 0, size, matrix) = 0.0;
-  *gme(0, 1, size, matrix) = -1.0;
-  *gme(0, 2, size, matrix) = 2.0;
-  *gme(1, 0, size, matrix) = 2.0;
-  *gme(1, 1, size, matrix) = 1.0;
-  *gme(1, 2, size, matrix) = -1.0;
-  *gme(2, 0, size, matrix) = 1.0;
-  *gme(2, 1, size, matrix) = 2.0;
-  *gme(2, 2, size, matrix) = 0.0;
-
-  return matrix;
-}
-
-double *generate_my_b(int size) {
-  int i;
-  double *matrix = (double *)malloc(sizeof(double) * 3);
-
-  matrix[0] = 3;
-  matrix[1] = 1;
-  matrix[2] = 5;
-
-  return matrix;
-}
-
-void main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
 
   int size = atoi(argv[1]);
 
   double *a, *aref;
   double *b, *bref;
-  double *result;
 
   a = generate_matrix(size);
   aref = generate_matrix(size);
@@ -315,4 +229,5 @@ void main(int argc, char *argv[]) {
 
   // print_matrix("X", b, size);
   // print_matrix("Xref", bref, size);
+  return 0;
 }
