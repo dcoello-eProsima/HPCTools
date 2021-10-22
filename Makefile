@@ -7,13 +7,13 @@ CFLAGS= -Wall -Wextra
 SRCS = dgesv.c
 OBJS = $(SRCS:.c=.o)
 OBJS_DBG = $(SRCS:.c=_dbg.o)
-LDLIBS= -lm -lopenblas -llapacke
+LDLIBS= -lm -lopenblas -llapacke -fopenmp
 
 %.o: %.c
-	$(CC) $(CFLAGS) -O2 -c $<
+	$(CC) $(CFLAGS) -fopenmp -O2 -c $<
 	
 %_dbg.o: %.c
-	$(CC) $(CFLAGS) -g -O0 -c -o $@ $<
+	$(CC) $(CFLAGS) -fopenmp -g -O0 -c -o $@ $<
 
 release: $(OBJS)
 debug: $(OBJS_DBG)
@@ -22,7 +22,7 @@ $(TARGET):
 	$(CC) $^ $(LDFLAGS) $(LDLIBS) -o $@_b
 
 icc: dgesv.c
-	icc $(CFLAGS) -mkl -o$@_b dgesv.c
+	icc $(CFLAGS) -mkl -fopenmp -o$@_b dgesv.c
 
 run:
 	echo "Small test"

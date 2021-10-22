@@ -5,6 +5,8 @@
 #include <string.h>
 #include <time.h>
 
+#include <omp.h>
+
 double *generate_matrix(int size, double *matrix) {
   int i;
   srand(1);
@@ -138,6 +140,7 @@ void solve_l(int n_r_a, int n_c_a, double *m, int n_c_b, double *b) {
     int arow_nca = arow * n_c_a;
     int arow_ncb = arow * n_c_b;
     int arow_p_arow_nca = m[arow_nca + arow];
+#pragma omp parallel for
     for (int bcol = 0; bcol < n_c_b; bcol++) { // loop vectorized
       double add = 0.0;
       for (int acol = 0; acol < arow; acol++) {
@@ -149,9 +152,11 @@ void solve_l(int n_r_a, int n_c_a, double *m, int n_c_b, double *b) {
 }
 
 void solve_u(int n_r_a, int n_c_a, double *m, int n_c_b, double *b) {
+
   for (int arow = n_r_a - 1; arow >= 0; arow--) {
     int arow_nca = arow * n_c_a;
     int arow_ncb = arow * n_c_b;
+#pragma omp parallel for
     for (int bcol = 0; bcol < n_c_b; bcol++) { // loop vectorized
       double add = 0.0;
       for (int acol = n_c_a - 1; acol > arow; acol--) {
