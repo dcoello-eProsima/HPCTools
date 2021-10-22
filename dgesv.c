@@ -5,11 +5,9 @@
 #include <string.h>
 #include <time.h>
 
-double *generate_matrix(int size) {
+double *generate_matrix(int size, double *matrix) {
   int i;
-  double *matrix = (double *)malloc(sizeof(double) * size * size);
   srand(1);
-
   for (i = 0; i < size * size; i++) {
     matrix[i] = rand() % 100;
   }
@@ -115,26 +113,23 @@ void row_interchange(int n_r, int n_c, int row_1, int row_2, double *m) {
   }
 }
 
-
-double *get_identity_matrix(int n) {
-  double *identity = (double *)malloc(sizeof(double) * n * n);
+void get_identity_matrix(int n, double *identity) {
   memset(identity, 0, sizeof(double) * n * n);
   for (int i = 0; i < n; i++) {
     *gme(i, i, n, identity) = 1;
   }
-  return identity;
 }
 
 void pa_lu_colum(int n_r, int n_c, int c, double *m, double *l) {
   double *elem = &m[c + c * n_c];
   for (int i = 1; i < n_r - c; i++) {
-    int c_index = ((c + i ) * n_c);
+    int c_index = ((c + i) * n_c);
     double *next = &m[c + c_index];
     double n_d_e = *next / *elem;
     for (int j = 0; j < n_r; j++) { // loop vectorized
-      m[j + c_index] -=  m[j + (c * n_c)] * n_d_e;
+      m[j + c_index] -= m[j + (c * n_c)] * n_d_e;
     }
-    l[c + c_index]+= n_d_e;
+    l[c + c_index] += n_d_e;
   }
 }
 
@@ -142,7 +137,7 @@ void solve_l(int n_r_a, int n_c_a, double *m, int n_c_b, double *b) {
   for (int arow = 0; arow < n_r_a; arow++) {
     int arow_nca = arow * n_c_a;
     int arow_ncb = arow * n_c_b;
-    int arow_p_arow_nca = m[arow_nca+ arow];
+    int arow_p_arow_nca = m[arow_nca + arow];
     for (int bcol = 0; bcol < n_c_b; bcol++) { // loop vectorized
       double add = 0.0;
       for (int acol = 0; acol < arow; acol++) {
@@ -181,8 +176,9 @@ void check_permutations(int n, double *m, int n_r_b, int n_c_b, double *b) {
   }
 }
 
-double *pa_lu(int n_r, int n_c, double *m, int n_r_b, int n_c_b, double *b) {
-  double *l = get_identity_matrix(n_r);
+void pa_lu(int n_r, int n_c, double *m, int n_r_b, int n_c_b, double *b,
+           double *l) {
+  get_identity_matrix(n_r, l);
   check_permutations(n_r, m, n_r_b, n_c_b, b);
   for (int colum = 0; colum < n_c - 1; colum++) {
     pa_lu_colum(n_r, n_c, colum, m, l);
@@ -190,20 +186,21 @@ double *pa_lu(int n_r, int n_c, double *m, int n_r_b, int n_c_b, double *b) {
 
   solve_l(n_r, n_c, l, n_c_b, b);
   solve_u(n_r, n_c, m, n_c_b, b);
-  return l;
 }
 
 int main(int argc, char *argv[]) {
 
   int size = atoi(argv[1]);
 
-  double *a, *aref;
-  double *b, *bref;
+  double *a = (double *)malloc(sizeof(double) * size * size);
+  double *aref = (double *)malloc(sizeof(double) * size * size);
+  double *b = (double *)malloc(sizeof(double) * size * size);
+  double *bref = (double *)malloc(sizeof(double) * size * size);
 
-  a = generate_matrix(size);
-  aref = generate_matrix(size);
-  b = generate_matrix(size);
-  bref = generate_matrix(size);
+  generate_matrix(size, a);
+  generate_matrix(size, aref);
+  generate_matrix(size, b);
+  generate_matrix(size, bref);
 
   // Using MKL to solve the system
   MKL_INT n = size, nrhs = size, lda = size, ldb = size, info;
@@ -217,7 +214,9 @@ int main(int argc, char *argv[]) {
 
   tStart = clock();
   MKL_INT *ipiv2 = (MKL_INT *)malloc(sizeof(MKL_INT) * size);
-  double *l = pa_lu(size, size, a, size, size, b);
+  double *l = (double *)malloc(sizeof(double) * n * n);
+  pa_lu(size, size, a, size, size, b, l);
+  free(l);
   // my_dgesv(n, nrhs, a, lda, ipiv2, b, ldb);
   printf("Time taken by my implementation: %.2fs\n",
          (double)(clock() - tStart) / CLOCKS_PER_SEC);
@@ -226,6 +225,13 @@ int main(int argc, char *argv[]) {
     printf("Result is ok!\n");
   else
     printf("Result is wrong!\n");
+
+  free(a);
+  free(aref);
+  free(b);
+  free(bref);
+  free(ipiv);
+  free(ipiv2);
 
   // print_matrix("X", b, size);
   // print_matrix("Xref", bref, size);
